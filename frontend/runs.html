@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Run History</title>
+<style>
+:root{
+  --bg:#0f1115; --panel:#161920; --panel-2:#1c2029; --line:#262b36;
+  --text:#e6e9ef; --dim:#8d94a3; --faint:#5b6273;
+  --accent:#6aa6ff; --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+  --orch:#b47cff; --browser:#4ea1ff; --scripter:#3fb950; --comms:#ff9f45; --tasks:#e06c9f;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#f6f7f9; --panel:#fff; --panel-2:#f0f2f6; --line:#dfe3ea;
+    --text:#161920; --dim:#5b6273; --faint:#8d94a3;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#f6f7f9; --panel:#fff; --panel-2:#f0f2f6; --line:#dfe3ea;
+  --text:#161920; --dim:#5b6273; --faint:#8d94a3;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:13px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased}
+code,.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+
+.app{display:grid;grid-template-columns:288px 1fr;height:100vh;overflow:hidden}
+.rail{border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-width:0}
+.main{display:flex;flex-direction:column;min-width:0;overflow:hidden}
+.railhead{padding:14px 16px 10px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.railhead h1{font-size:14px;margin:0;font-weight:650;flex:1}
+.iconbtn{background:none;border:1px solid var(--line);color:var(--dim);border-radius:7px;
+  width:28px;height:28px;cursor:pointer;font-size:13px;line-height:1;display:grid;place-items:center}
+.iconbtn:hover{color:var(--text);border-color:var(--faint)}
+.sessions{overflow-y:auto;flex:1;padding:6px}
+.srow{padding:10px 11px;border-radius:10px;cursor:pointer;border:1px solid transparent;margin-bottom:2px}
+.srow:hover{background:var(--panel-2)}
+.srow.sel{background:var(--panel-2);border-color:var(--accent)}
+.srow .when{font-weight:600;font-size:12.5px}
+.srow .sid{color:var(--faint);font-size:10.5px;margin-top:1px}
+.srow .meta{color:var(--dim);font-size:11px;margin-top:6px;display:flex;gap:9px;flex-wrap:wrap}
+.dots{display:flex;gap:3px;margin-top:7px}
+.dot{width:7px;height:7px;border-radius:50%}
+
+.head{padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel);
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.head h2{margin:0;font-size:14px;font-weight:650}
+.head .sub{color:var(--faint);font-size:11px;margin-top:2px}
+.stats{display:flex;gap:18px;margin-left:auto;flex-wrap:wrap}
+.stat b{display:block;font-size:14px;font-weight:650;font-variant-numeric:tabular-nums}
+.stat span{color:var(--dim);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em}
+.tabs{display:flex;gap:2px;background:var(--panel-2);padding:3px;border-radius:9px}
+.tab{padding:5px 13px;border-radius:7px;cursor:pointer;color:var(--dim);border:none;
+  background:none;font:inherit;font-size:12px}
+.tab.on{background:var(--panel);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.body{flex:1;overflow:auto;position:relative;min-height:0}
+.empty{display:grid;place-items:center;height:100%;color:var(--faint)}
+.filters{display:flex;gap:6px;padding:10px 16px;border-bottom:1px solid var(--line);
+  flex-wrap:wrap;position:sticky;top:0;background:var(--bg);z-index:5}
+.f{padding:3px 10px;border-radius:20px;border:1px solid var(--line);background:none;color:var(--dim);
+  cursor:pointer;font:inherit;font-size:11px}
+.f.on{border-color:var(--accent);color:var(--accent)}
+
+/* ------------------------------------------------------------- chain view */
+.chain{padding:18px 24px 60px;max-width:900px}
+.hop{display:grid;grid-template-columns:62px 22px 1fr;gap:0;align-items:stretch}
+.hopts{padding-top:14px;color:var(--faint);font-size:10.5px;text-align:right;padding-right:10px;
+  font-variant-numeric:tabular-nums}
+.spine{position:relative;display:flex;justify-content:center}
+.spine .line{width:2px;background:var(--seg,var(--line));opacity:.5;flex:none}
+.spine .pip{position:absolute;top:16px;width:11px;height:11px;border-radius:50%;
+  background:var(--bg);border:2.5px solid var(--seg,var(--faint))}
+.hop.first .line{margin-top:16px}
+.hop.last .line{margin-bottom:calc(100% - 28px)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:9px 12px;margin:8px 0 8px 14px;cursor:pointer;display:flex;align-items:center;
+  gap:9px;min-width:0;transition:border-color .12s,transform .1s}
+.card:hover{border-color:var(--faint);transform:translateX(1px)}
+.card.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.card.failed{border-color:rgba(248,81,73,.5)}
+.who{font-size:11px;color:var(--dim);flex:none;min-width:96px;display:flex;align-items:center;gap:6px}
+.seq{color:var(--faint);font-size:10px;width:26px;flex:none;text-align:right;
+  font-variant-numeric:tabular-nums}
+.chip{font-size:10px;padding:1px 6px;border-radius:5px;flex:none}
+.chip.llm{background:rgba(106,166,255,.14);color:var(--accent)}
+.chip.tool{background:rgba(63,185,80,.14);color:var(--ok)}
+.chip.fail{background:rgba(248,81,73,.16);color:var(--bad)}
+.nm{font-weight:600;font-size:12px;flex:none}
+.pv{color:var(--faint);font-size:11px;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;min-width:0;flex:1}
+.hopgroup{font-size:10.5px;color:var(--dim);margin:14px 0 2px 14px;
+  text-transform:uppercase;letter-spacing:.06em}
+
+/* -------------------------------------------------------------- flow view */
+.flow{position:relative;padding:36px 40px;min-height:100%}
+.flow svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.lane{display:flex;align-items:flex-start;gap:56px;position:relative}
+.col{display:flex;flex-direction:column;gap:18px}
+.node{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+  width:232px;cursor:pointer;position:relative;transition:border-color .12s,transform .12s}
+.node:hover{border-color:var(--faint);transform:translateY(-1px)}
+.node .bar{height:3px;margin:-12px -14px 10px;border-radius:12px 12px 0 0}
+.node .nm2{font-weight:650;font-size:12.5px;display:flex;align-items:center;gap:6px}
+.node .kv{color:var(--dim);font-size:11px;margin-top:7px;display:grid;
+  grid-template-columns:auto auto;gap:2px 10px}
+.node .kv i{font-style:normal;color:var(--faint)}
+.pill{font-size:10px;padding:1px 6px;border-radius:20px;background:var(--panel-2);color:var(--dim)}
+.pill.bad{background:rgba(248,81,73,.15);color:var(--bad)}
+
+/* ----------------------------------------------------------------- detail */
+.detail{position:fixed;top:0;right:0;bottom:0;width:min(680px,96vw);background:var(--panel);
+  border-left:1px solid var(--line);transform:translateX(100%);transition:transform .16s ease;
+  display:flex;flex-direction:column;z-index:20}
+.detail.open{transform:none}
+.dhead{padding:13px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.dhead h3{margin:0;font-size:13px;flex:1;font-weight:650}
+.dnav{display:flex;gap:4px}
+.dbody{overflow:auto;padding:16px 18px;flex:1}
+.dsec{margin-bottom:16px}
+.dsec h4{margin:0 0 6px;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--faint);display:flex;align-items:center;gap:8px}
+.dsec h4 button{margin-left:auto}
+pre{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:11px 12px;
+  margin:0;overflow:auto;font-size:11.5px;white-space:pre-wrap;word-break:break-word;max-height:420px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.box{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+.box b{display:block;font-size:14px;font-variant-numeric:tabular-nums}
+.box span{color:var(--dim);font-size:10.5px}
+.msg{border:1px solid var(--line);border-radius:8px;margin-bottom:7px;overflow:hidden}
+.msghead{padding:6px 11px;background:var(--panel-2);font-size:11px;display:flex;
+  align-items:center;gap:8px;cursor:pointer}
+.msghead b{font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.msghead .len{margin-left:auto;color:var(--faint);font-size:10.5px}
+.msg pre{border:none;border-radius:0;max-height:300px;background:var(--panel)}
+.msg.collapsed pre{display:none}
+.role-system b{color:var(--orch)} .role-user b{color:var(--accent)}
+.role-assistant b{color:var(--ok)} .role-tool b{color:var(--comms)}
+.loading{color:var(--faint);padding:8px 0}
+.warn{background:rgba(210,153,34,.12);border:1px solid rgba(210,153,34,.35);
+  border-radius:8px;padding:9px 11px;color:var(--warn);font-size:11.5px}
+@media (max-width:860px){
+  .app{grid-template-columns:1fr}
+  .rail{position:fixed;inset:0 auto 0 0;width:270px;z-index:30;transform:translateX(-100%);
+    transition:transform .16s}
+  .rail.open{transform:none}
+  .lane{flex-direction:column;gap:18px}
+  .flow svg{display:none}
+  .hop{grid-template-columns:0 18px 1fr}
+  .hopts{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail" id="rail">
+    <div class="railhead">
+      <h1>Run History</h1>
+      <button class="iconbtn" id="reload" title="Reload">&#8635;</button>
+      <button class="iconbtn" id="theme" title="Theme">&#9681;</button>
+    </div>
+    <div class="sessions" id="sessions"></div>
+  </aside>
+  <main class="main">
+    <div class="head">
+      <div>
+        <h2 id="title">Select a run</h2>
+        <div class="sub mono" id="subtitle">&nbsp;</div>
+      </div>
+      <div class="tabs">
+        <button class="tab on" data-view="chain">Chain</button>
+        <button class="tab" data-view="flow">Flow</button>
+      </div>
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="body" id="body"><div class="empty">Pick a run on the left.</div></div>
+  </main>
+</div>
+
+<div class="detail" id="detail">
+  <div class="dhead">
+    <h3 id="dtitle">Detail</h3>
+    <div class="dnav">
+      <button class="iconbtn" id="dprev" title="Previous call">&#8593;</button>
+      <button class="iconbtn" id="dnext" title="Next call">&#8595;</button>
+      <button class="iconbtn" id="dclose" title="Close">&times;</button>
+    </div>
+  </div>
+  <div class="dbody" id="dbody"></div>
+</div>
+
+<script>
+const AGENT_COLOR = {
+  orchestrator:'var(--orch)', browser_agent:'var(--browser)', scripter:'var(--scripter)',
+  comms_agent:'var(--comms)', task_manager:'var(--tasks)',
+};
+const LABEL = {orchestrator:'main agent'};
+const color = a => AGENT_COLOR[a] || 'var(--faint)';
+const label = a => LABEL[a] || a;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const nfmt = n => n >= 1000 ? (n/1000).toFixed(n >= 10000 ? 0 : 1) + 'k' : String(n);
+const time = ts => { try { return new Date(ts).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}); } catch { return ts; } };
+const day  = ts => { try { return new Date(ts).toLocaleDateString([], {month:'short',day:'numeric'}); } catch { return ''; } };
+
+let SESSIONS = [], RUN = null, VIEW = 'chain', FILTER = 'all', CUR = null;
+
+async function loadSessions(){
+  const r = await fetch('/api/runs?limit=60');
+  SESSIONS = (await r.json()).sessions || [];
+  renderSessions();
+  if (SESSIONS.length && !RUN) openRun(SESSIONS[0].session);
+}
+async function openRun(sid){
+  const r = await fetch('/api/runs/' + encodeURIComponent(sid));
+  if (!r.ok) return;
+  RUN = await r.json(); CUR = null;
+  renderSessions(); renderHead(); render();
+  $('#rail').classList.remove('open');
+}
+function renderSessions(){
+  $('#sessions').innerHTML = SESSIONS.map(s => `
+    <div class="srow ${RUN && RUN.session === s.session ? 'sel' : ''}" data-sid="${esc(s.session)}">
+      <div class="when">${day(s.started)} &middot; ${time(s.started)}</div>
+      <div class="sid mono">${esc(s.session)}</div>
+      <div class="meta">
+        <span>${s.llm_calls} llm</span><span>${s.tool_calls} tools</span>
+        ${s.failed_tools ? `<span style="color:var(--bad)">${s.failed_tools} failed</span>` : ''}
+        <span>$${(s.est_usd||0).toFixed(3)}</span>
+      </div>
+      <div class="dots">${(s.agents||[]).map(a =>
+        `<div class="dot" style="background:${color(a)}" title="${esc(a)}"></div>`).join('')}</div>
+    </div>`).join('') || '<div class="empty" style="height:120px">No runs yet.</div>';
+  document.querySelectorAll('.srow').forEach(el => el.onclick = () => openRun(el.dataset.sid));
+}
+function renderHead(){
+  $('#title').textContent = day(RUN.started) + ' · ' + time(RUN.started) + ' → ' + time(RUN.ended);
+  $('#subtitle').textContent = RUN.session;
+  const cached = RUN.input_tokens ? Math.round(100*RUN.cache_input_tokens/RUN.input_tokens) : 0;
+  $('#stats').innerHTML = [
+    ['llm calls', RUN.llm_calls], ['tool calls', RUN.tool_calls],
+    ['failed', RUN.failed_tools], ['in', nfmt(RUN.input_tokens)],
+    ['cached', cached+'%'], ['out', nfmt(RUN.output_tokens)],
+    ['cost', '$'+(RUN.est_usd||0).toFixed(3)],
+  ].map(([k,v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
+}
+
+/* ------------------------------------------------------------- chain view */
+function preview(e){
+  if (e.kind === 'llm')
+    return `${nfmt(e.input_tokens)} in · ${nfmt(e.output_tokens)} out · ${e.latency_s}s`;
+  return e.args || '';
+}
+function visible(){
+  return RUN.events.filter(e =>
+    FILTER === 'all' || (FILTER === 'llm' && e.kind === 'llm') ||
+    (FILTER === 'tool' && e.kind === 'tool') || (FILTER === 'failed' && !e.ok));
+}
+function renderChain(){
+  const evs = visible();
+  const rows = evs.map((e, i) => {
+    const prev = evs[i-1], next = evs[i+1];
+    const newAgent = !prev || prev.agent !== e.agent;
+    const cls = [i === 0 ? 'first' : '', i === evs.length-1 ? 'last' : ''].join(' ');
+    return `
+      ${newAgent ? `<div class="hopgroup" style="color:${color(e.agent)}">${esc(label(e.agent))}</div>` : ''}
+      <div class="hop ${cls}" style="--seg:${color(e.agent)}">
+        <div class="hopts mono">${time(e.ts)}</div>
+        <div class="spine"><div class="line"></div><div class="pip"></div></div>
+        <div class="card ${!e.ok ? 'failed' : ''} ${CUR && CUR.seq === e.seq ? 'sel' : ''}"
+             data-seq="${e.seq}">
+          <span class="seq">${e.seq}</span>
+          <span class="who"><span class="dot" style="background:${color(e.agent)}"></span>${esc(label(e.agent))}</span>
+          <span class="chip ${!e.ok ? 'fail' : e.kind}">${!e.ok ? 'fail' : e.kind}</span>
+          <span class="nm">${esc(e.name)}</span>
+          <span class="pv mono">${esc(preview(e))}</span>
+        </div>
+      </div>`;
+  }).join('');
+  $('#body').innerHTML = `
+    <div class="filters">
+      ${['all','llm','tool','failed'].map(f =>
+        `<button class="f ${FILTER===f?'on':''}" data-f="${f}">${f}</button>`).join('')}
+      <span style="margin-left:auto;color:var(--faint);font-size:11px;align-self:center">
+        ${evs.length} of ${RUN.events.length} calls, in order</span>
+    </div>
+    <div class="chain">${rows || '<div class="loading">Nothing matches that filter.</div>'}</div>`;
+  document.querySelectorAll('.f').forEach(el =>
+    el.onclick = () => { FILTER = el.dataset.f; renderChain(); });
+  document.querySelectorAll('.card').forEach(el =>
+    el.onclick = () => showEvent(RUN.events.find(x => x.seq === +el.dataset.seq)));
+}
+
+/* -------------------------------------------------------------- flow view */
+function agentStats(a){
+  const ev = RUN.events.filter(e => e.agent === a);
+  const llm = ev.filter(e => e.kind === 'llm');
+  return {events:ev, llm:llm.length, tools:ev.length-llm.length,
+    failed:ev.filter(e => !e.ok).length,
+    tokens:llm.reduce((n,e) => n+e.input_tokens+e.output_tokens, 0),
+    usd:llm.reduce((n,e) => n+e.est_usd, 0)};
+}
+function nodeHTML(a){
+  const s = agentStats(a);
+  return `<div class="node" data-agent="${esc(a)}" id="n-${esc(a)}">
+    <div class="bar" style="background:${color(a)}"></div>
+    <div class="nm2">${esc(label(a))} ${s.failed?`<span class="pill bad">${s.failed} failed</span>`:''}</div>
+    <div class="kv"><i>llm calls</i><span>${s.llm}</span><i>tool calls</i><span>${s.tools}</span>
+      <i>tokens</i><span>${nfmt(s.tokens)}</span><i>cost</i><span>$${s.usd.toFixed(3)}</span></div>
+  </div>`;
+}
+function renderFlow(){
+  const children = RUN.agents.filter(a => a !== 'orchestrator');
+  const orch = RUN.agents.includes('orchestrator') ? 'orchestrator' : null;
+  $('#body').innerHTML = `<div class="flow"><svg id="edges"></svg><div class="lane">
+    <div class="col">${orch ? nodeHTML(orch) : ''}</div>
+    <div class="col">${children.map(nodeHTML).join('')}</div></div></div>`;
+  document.querySelectorAll('.node').forEach(el =>
+    el.onclick = () => showAgent(el.dataset.agent));
+  requestAnimationFrame(drawEdges);
+}
+function drawEdges(){
+  const svg = $('#edges'); if (!svg || !RUN) return;
+  const from = document.getElementById('n-orchestrator'); if (!from) return;
+  const host = svg.parentElement.getBoundingClientRect();
+  const a = from.getBoundingClientRect();
+  const counts = {}; RUN.delegations.forEach(d => counts[d.to] = (counts[d.to]||0)+1);
+  const seen = {};
+  const paths = RUN.delegations.map(d => {
+    const to = document.getElementById('n-'+d.to); if (!to) return '';
+    const b = to.getBoundingClientRect();
+    const i = (seen[d.to] = (seen[d.to]||0)+1), n = counts[d.to];
+    const x1 = a.right-host.left, y1 = a.top-host.top+a.height/2;
+    const x2 = b.left-host.left,  y2 = b.top-host.top+b.height/2;
+    const off = (i-(n+1)/2)*7, mx = (x1+x2)/2;
+    return `<path d="M${x1},${y1} C${mx},${y1+off} ${mx},${y2+off} ${x2},${y2}"
+      fill="none" stroke="${d.refused?'var(--bad)':color(d.to)}" stroke-width="1.5"
+      opacity="${d.refused?.9:.45}" ${d.refused?'stroke-dasharray="4 3"':''}/>`;
+  }).join('');
+  const badges = Object.entries(counts).filter(([,n]) => n > 1).map(([child,n]) => {
+    const to = document.getElementById('n-'+child); if (!to) return '';
+    const b = to.getBoundingClientRect();
+    return `<text x="${b.left-host.left-28}" y="${b.top-host.top+b.height/2-8}"
+      fill="var(--warn)" font-size="10" font-family="ui-monospace,monospace">x${n}</text>`;
+  }).join('');
+  svg.innerHTML = paths + badges;
+}
+function render(){ VIEW === 'chain' ? renderChain() : renderFlow(); }
+
+/* ----------------------------------------------------- detail + payloads */
+function openDetail(title, html){
+  $('#dtitle').textContent = title;
+  $('#dbody').innerHTML = html;
+  $('#detail').classList.add('open');
+}
+function msgBlock(m, i){
+  const role = (m && (m.role || m.name)) || 'message';
+  let text;
+  if (typeof m === 'string') text = m;
+  else if (m && m.content !== undefined && typeof m.content === 'string') text = m.content;
+  else text = JSON.stringify(m, null, 2);
+  const cls = 'role-' + String(role).toLowerCase().replace(/[^a-z]/g,'');
+  // System prompts are long and identical across calls; start them folded so
+  // the message that actually differs is the one you see first.
+  const fold = String(role).toLowerCase() === 'system' && i > 0;
+  return `<div class="msg ${cls} ${fold?'collapsed':''}">
+    <div class="msghead"><b>${esc(role)}</b>
+      <span class="len">${text.length.toLocaleString()} chars</span></div>
+    <pre>${esc(text)}</pre></div>`;
+}
+function bindFolds(){
+  $('#dbody').querySelectorAll('.msghead').forEach(h =>
+    h.onclick = () => h.parentElement.classList.toggle('collapsed'));
+}
+async function loadPayload(e){
+  const host = $('#payload'); if (!host) return;
+  if (!e.call_id){
+    host.innerHTML = `<div class="warn">No payload stored for this call — it ran
+      before the payload log existed, or with CALL_LOG=0. New runs record the
+      full request and response.</div>`;
+    return;
+  }
+  host.innerHTML = '<div class="loading">Loading…</div>';
+  const r = await fetch('/api/calls/' + encodeURIComponent(e.call_id));
+  if (!r.ok){
+    host.innerHTML = `<div class="warn">Payload not found (${r.status}). The log
+      may have rotated since this run.</div>`;
+    return;
+  }
+  const p = await r.json();
+  const req = p.request || {}, res = p.response;
+  let reqHTML;
+  if (p.kind === 'llm'){
+    const msgs = Array.isArray(req.messages) ? req.messages : [req.messages];
+    reqHTML = msgs.map(msgBlock).join('')
+      + (req.tools && req.tools.length
+        ? `<div class="dsec"><h4>Tools offered (${req.tools.length})</h4>
+           <pre>${esc(req.tools.join(', '))}</pre></div>` : '');
+  } else {
+    reqHTML = `<pre>${esc(typeof req === 'string' ? req : JSON.stringify(req, null, 2))}</pre>`;
+  }
+  const resText = typeof res === 'string' ? res : JSON.stringify(res, null, 2);
+  host.innerHTML = `
+    <div class="dsec"><h4>Request${p.kind === 'llm' ? ' — messages sent' : ''}
+      <button class="iconbtn" data-copy="req" title="Copy">&#128203;</button></h4>
+      ${reqHTML}</div>
+    <div class="dsec"><h4>Response
+      <button class="iconbtn" data-copy="res" title="Copy">&#128203;</button></h4>
+      <pre>${esc(resText)}</pre></div>
+    ${p.oversize ? `<div class="warn">This payload was ${p.oversize.toLocaleString()}
+      bytes and was clipped before storage.</div>` : ''}`;
+  bindFolds();
+  host.querySelectorAll('[data-copy]').forEach(b => b.onclick = ev => {
+    ev.stopPropagation();
+    const txt = b.dataset.copy === 'res' ? resText
+      : (p.kind === 'llm' ? JSON.stringify(req.messages, null, 2)
+                          : JSON.stringify(req, null, 2));
+    navigator.clipboard?.writeText(txt);
+    b.textContent = '✓'; setTimeout(() => b.innerHTML = '&#128203;', 900);
+  });
+}
+function showEvent(e){
+  if (!e) return;
+  CUR = e;
+  const boxes = e.kind === 'llm' ? `
+    <div class="dsec"><div class="grid2">
+      <div class="box"><b>${e.input_tokens.toLocaleString()}</b><span>input tokens</span></div>
+      <div class="box"><b>${e.output_tokens.toLocaleString()}</b><span>output tokens</span></div>
+      <div class="box"><b>${e.cache_input_tokens.toLocaleString()}</b><span>of input, cached</span></div>
+      <div class="box"><b>$${e.est_usd.toFixed(5)}</b><span>estimated</span></div>
+      <div class="box"><b>${e.latency_s}s</b><span>latency</span></div>
+      <div class="box"><b>${e.tools_offered}</b><span>tools offered</span></div>
+    </div></div>` : '';
+  openDetail(`#${e.seq} · ${label(e.agent)} · ${e.name}`, `
+    <div class="dsec"><h4>Where</h4><pre>${esc(e.agent)} · ${esc(e.ts)}${
+      e.kind === 'llm' && e.profile ? '\n' + esc(e.profile) : ''}${
+      e.inferred ? '\n\nMatched to this run by timestamp — logged before usage rows carried a session id.' : ''}</pre></div>
+    ${boxes}
+    <div id="payload"></div>`);
+  loadPayload(e);
+  if (VIEW === 'chain') renderChain();
+}
+function showAgent(a){
+  const s = agentStats(a);
+  openDetail(label(a), `
+    <div class="dsec"><div class="grid2">
+      <div class="box"><b>${s.llm}</b><span>llm calls</span></div>
+      <div class="box"><b>${s.tools}</b><span>tool calls</span></div>
+      <div class="box"><b>${nfmt(s.tokens)}</b><span>tokens</span></div>
+      <div class="box"><b>$${s.usd.toFixed(4)}</b><span>estimated</span></div>
+    </div></div>
+    <div class="dsec"><h4>Calls in order</h4>
+      ${s.events.map(e => `<div class="card" data-seq="${e.seq}" style="margin-left:0">
+        <span class="seq">${e.seq}</span>
+        <span class="chip ${!e.ok?'fail':e.kind}">${!e.ok?'fail':e.kind}</span>
+        <span class="nm">${esc(e.name)}</span>
+        <span class="pv mono">${esc(preview(e))}</span></div>`).join('')}
+    </div>`);
+  $('#dbody').querySelectorAll('.card').forEach(el =>
+    el.onclick = () => showEvent(RUN.events.find(x => x.seq === +el.dataset.seq)));
+}
+function step(delta){
+  if (!CUR || !RUN) return;
+  const evs = visible();
+  const i = evs.findIndex(e => e.seq === CUR.seq);
+  const nxt = evs[i + delta];
+  if (nxt) showEvent(nxt);
+}
+
+$('#dclose').onclick = () => { $('#detail').classList.remove('open'); CUR = null;
+  if (VIEW === 'chain' && RUN) renderChain(); };
+$('#dprev').onclick = () => step(-1);
+$('#dnext').onclick = () => step(1);
+$('#reload').onclick = () => loadSessions();
+$('#theme').onclick = () => {
+  const dark = (document.documentElement.dataset.theme || '') !== 'light';
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('runs.theme', document.documentElement.dataset.theme); } catch {}
+};
+try { const t = localStorage.getItem('runs.theme'); if (t) document.documentElement.dataset.theme = t; } catch {}
+document.querySelectorAll('.tab').forEach(el => el.onclick = () => {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('on'));
+  el.classList.add('on'); VIEW = el.dataset.view; if (RUN) render();
+});
+addEventListener('resize', () => { if (RUN && VIEW === 'flow') drawEdges(); });
+addEventListener('keydown', e => {
+  if (e.key === 'Escape') { $('#detail').classList.remove('open'); CUR = null; }
+  if (!$('#detail').classList.contains('open')) return;
+  if (e.key === 'ArrowDown' || e.key === 'j'){ e.preventDefault(); step(1); }
+  if (e.key === 'ArrowUp'   || e.key === 'k'){ e.preventDefault(); step(-1); }
+});
+loadSessions();
+</script>
+</body>
+</html>

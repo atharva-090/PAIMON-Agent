@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BA Task Manager · Hermes-PM</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">🗂️ <b>BA Task Manager</b> <span class="muted">+ Hermes-PM agent</span></div>
+    <a class="chat-link" href="/chat/" title="Focused chat with the swarm (OpenAI API)">💬 Chat</a>
+    <div id="stats" class="stats"></div>
+  </header>
+
+  <div class="layout">
+    <!-- Sidebar: groups & subgroups tree -->
+    <aside class="sidebar">
+      <div class="sidebar-head">
+        <span>Groups</span>
+        <button class="mini" onclick="newGroup()">+ Group</button>
+      </div>
+      <div id="tree" class="tree"></div>
+
+      <div class="panel">
+        <div class="panel-title">⏰ Due reminders</div>
+        <div id="reminders" class="panel-body small"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">🔁 Pending follow-ups</div>
+        <div id="followups" class="panel-body small"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">📄 Reports <span class="muted">(generated)</span></div>
+        <div id="reports" class="panel-body small"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">🗂️ Files <span class="muted">(allowed roots)</span></div>
+        <div id="files" class="panel-body small"></div>
+      </div>
+    </aside>
+
+    <!-- Main: tasks of the selected group/subgroup -->
+    <main class="main">
+      <div class="main-head">
+        <h2 id="main-title">Select a group</h2>
+        <div class="main-actions" id="main-actions" style="display:none">
+          <button class="mini" onclick="newSubgroup()">+ Subgroup</button>
+          <button class="mini primary" onclick="newTask()">+ Task</button>
+        </div>
+      </div>
+      <input id="search" class="search" placeholder="🔍 search tasks across everything…"
+             oninput="onSearch(this.value)" />
+      <div id="tasks" class="tasks"></div>
+    </main>
+
+    <!-- Right: agent chat -->
+    <section class="chat">
+      <div class="chat-head">
+        🤖 Hermes-PM
+        <span class="muted">(organise tasks · 🌐 browse the web)</span>
+        <select id="chat-mode" class="llm-select" title="Single agent or orchestrator + specialist children" onchange="onModeChange()">
+          <option value="single">mode: single</option>
+          <option value="swarm">mode: swarm (orch + 4 children)</option>
+        </select>
+        <select id="llm-profile" class="llm-select" title="Which LLM 'brain' to use">
+          <option value="mock">brain: mock (ChatGPT)</option>
+          <option value="local">brain: K2-Horizon (local)</option>
+          <option value="openai">brain: OpenAI</option>
+          <option value="anthropic">brain: Anthropic</option>
+          <option value="gemini">brain: Gemini</option>
+        </select>
+        <button class="mini" id="new-session-btn" title="Archive this chat and start fresh (keeps context small)" onclick="newSession()">＋ New session</button>
+      </div>
+      <div id="swarm-strip" class="swarm-strip" style="display:none"></div>
+      <div id="chat-log" class="chat-log"></div>
+      <form id="chat-form" class="chat-form" onsubmit="return sendChat(event)">
+        <textarea id="chat-input" rows="2"
+          placeholder="e.g. 'Go to news.ycombinator.com and create a task for the top story' — or organise tasks"></textarea>
+        <div class="chat-send-col">
+          <button class="primary" type="submit">Send</button>
+          <button class="mic-btn" id="mic-btn" type="button" title="Click to talk"
+                  style="display:none" onclick="onMicClick()">🎤</button>
+        </div>
+      </form>
+      <div id="voice-bar" class="voice-bar" style="display:none">
+        <span id="voice-status" class="voice-status">🎙️ ready</span>
+        <label class="voice-toggle"><input type="checkbox" id="wake-toggle" onchange="onWakeToggle()"> 🧚 Paimon wake word</label>
+        <label class="voice-toggle"><input type="checkbox" id="speak-toggle" checked> 🔊 speak replies</label>
+        <label class="voice-toggle"><input type="checkbox" id="handsfree-toggle"> 🔁 hands-free</label>
+      </div>
+      <div class="muted small chat-hint">Replies take ~10s–several min (browser tasks run many LLM steps). Real-API brains are faster than the mocker.</div>
+    </section>
+  </div>
+
+  <!-- Task detail modal -->
+  <div id="modal" class="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+    <div class="modal-card" id="modal-card"></div>
+  </div>
+
+  <!-- Reminder notification toasts -->
+  <div id="toasts" class="toasts"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

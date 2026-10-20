@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Paimon</title>
+  <meta name="theme-color" content="#0b0b14" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Paimon" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- App bar -->
+  <header class="appbar">
+    <button class="icon-btn" id="menu-btn" title="Settings" aria-label="Settings">⚙️</button>
+    <div class="title">
+      <span class="logo">🧚</span>
+      <div class="title-text">
+        <b>Paimon</b>
+        <span id="conn" class="conn" title="connection">connecting…</span>
+      </div>
+    </div>
+    <button class="icon-btn" id="new-btn" title="New chat" aria-label="New chat">✎</button>
+  </header>
+
+  <!-- Chat transcript -->
+  <main id="chat-log" class="chat-log">
+    <div class="empty" id="empty-state">
+      <div class="empty-logo">🧚</div>
+      <h2>Hi, I'm Paimon</h2>
+      <p>Ask me to organise tasks, browse the web, email someone, or pull a file and send it to you. Tap the mic and just talk.</p>
+      <div class="chips">
+        <button class="chip" data-say="What's on my plate today?">What's on my plate today?</button>
+        <button class="chip" data-say="Send me the latest report you generated.">Send me a report</button>
+        <button class="chip" data-say="Remind me to call the vendor in 2 hours.">Remind me in 2 hours</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- Live voice status pill -->
+  <div id="voice-pill" class="voice-pill" style="display:none"></div>
+
+  <!-- Composer -->
+  <form id="composer" class="composer" autocomplete="off">
+    <textarea id="input" rows="1" enterkeyhint="send"
+      placeholder="Message Paimon…"></textarea>
+    <button type="button" id="mic" class="mic" title="Hold to talk / tap to talk" aria-label="Talk">
+      <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+        <path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Z"/>
+        <path fill="currentColor" d="M19 11a1 1 0 1 0-2 0 5 5 0 0 1-10 0 1 1 0 1 0-2 0 7 7 0 0 0 6 6.92V21a1 1 0 1 0 2 0v-3.08A7 7 0 0 0 19 11Z"/>
+      </svg>
+    </button>
+    <button type="submit" id="send" class="send" title="Send" aria-label="Send">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <path fill="currentColor" d="M3.4 20.4 21 12 3.4 3.6 3.39 10l12 2-12 2 .01 6.4Z"/>
+      </svg>
+    </button>
+  </form>
+
+  <!-- Settings sheet -->
+  <div id="sheet-backdrop" class="sheet-backdrop" style="display:none"></div>
+  <section id="sheet" class="sheet" style="display:none" aria-modal="true">
+    <div class="sheet-handle"></div>
+    <h3>Settings</h3>
+
+    <label class="row">
+      <span>Server</span>
+      <input id="server-url" placeholder="http://192.168.1.20:8800" inputmode="url" />
+    </label>
+    <label class="row">
+      <span>Access token</span>
+      <input id="token" placeholder="(if your server requires one)" />
+    </label>
+    <div class="row btns">
+      <button class="ghost" id="test-conn">Test connection</button>
+      <span id="test-result" class="muted"></span>
+    </div>
+
+    <div class="divider"></div>
+
+    <label class="row">
+      <span>Brain</span>
+      <select id="brain">
+        <option value="mock">mock (ChatGPT)</option>
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Anthropic</option>
+        <option value="gemini">Gemini</option>
+      </select>
+    </label>
+    <label class="row">
+      <span>Mode</span>
+      <select id="mode">
+        <option value="single">single agent</option>
+        <option value="swarm">swarm (orchestrator + 4)</option>
+      </select>
+    </label>
+
+    <div class="divider"></div>
+
+    <label class="row switch"><span>🔊 Speak replies</span><input type="checkbox" id="speak" checked /></label>
+    <label class="row switch"><span>🔁 Hands-free</span><input type="checkbox" id="handsfree" /></label>
+    <label class="row switch"><span>🧚 "Paimon" wake word</span><input type="checkbox" id="wake" /></label>
+    <div id="voice-unavail" class="muted small" style="display:none">Voice isn't installed on the server.</div>
+
+    <div class="divider"></div>
+    <div id="install-row" class="row" style="display:none">
+      <button class="primary wide" id="install-btn">📲 Install Paimon on this phone</button>
+    </div>
+    <p class="muted small">To install manually: open this page in Chrome, then menu (⋮) → <b>Install app</b> / <b>Add to Home screen</b>.</p>
+
+    <button class="ghost wide" id="sheet-close">Close</button>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>

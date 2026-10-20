@@ -1,0 +1,49 @@
+# ---- secrets ---------------------------------------------------------------
+# .env holds the Gmail app password and the provider keys; keep only the
+# placeholder copy in the repo.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+token.json
+
+# ---- what this machine wrote, not what the project is ----------------------
+# data/   runtime ledgers: OAuth tokens, contacts, call payloads, uploads,
+#         generated reports, browser run logs.
+# memory/ the user's own memory wiki, digests and session transcripts.
+# .browser-profile/ a logged-in Chrome profile -- cookies and sessions.
+data/
+memory/
+.browser-profile/
+voice/
+*.log
+
+# ---- environments and build output -----------------------------------------
+.venv/
+.venv-*/
+__pycache__/
+*.py[cod]
+node_modules/
+dist/
+build/
+mobile/apk/
+
+# ---- editor / machine-local -------------------------------------------------
+.claude/
+.vscode/
+.idea/
+*.swp
+
+# ---- local edit backups ------------------------------------------------------
+*.bak
+*.bak[0-9]
+*.bak-*
+*.orig
+
+# ---- stray files from a mis-quoted shell command ----------------------------
+(*
+*)
+*!
+\[a.innerText
